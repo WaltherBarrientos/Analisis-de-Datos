@@ -1,0 +1,44 @@
+import os
+import pandas as pd
+from pathlib import Path
+
+def extract_and_save_sheet_data(directory, sheet_names, output_directory):
+    # Me aseguro primero que el directorio donde voy a guardar los archivos extraídos exista, 
+    # y si no existe, lo creo.
+    Path(output_directory).mkdir(parents=True, exist_ok=True)
+
+    # Ahora, recolecto todos los archivos con extensión .xlsx del directorio que me proporcionaron.
+    files = [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.xlsx')]
+    
+    # Empiezo a recorrer cada archivo que encontré.
+    for file in files:
+        # Y para cada archivo, también reviso cada nombre de hoja que quieren que procese.
+        for sheet_name in sheet_names:
+            try:
+                # Aquí cargo la hoja del archivo Excel especificada por sheet_name.
+                data = pd.read_excel(file, sheet_name=sheet_name, engine='openpyxl')
+                # Convierto todas las celdas a su valor, asegurándome de no tener fórmulas sino datos concretos.
+                for col in data.columns:
+                    data[col] = data[col].apply(lambda x: x.value if hasattr(x, 'value') else x)
+                # Cuento los registros que estoy por extraer, solo para tener un control.
+                num_records = data.shape[0]
+                # Imprimo una línea de texto que indica cuántos registros se extrajeron.
+                print(f"Extraídos {num_records} registros de '{sheet_name}' en '{file}'")
+                # Preparo el nombre del nuevo archivo que será guardado con los datos extraídos.
+                base_name = os.path.splitext(os.path.basename(file))[0]
+                output_file = os.path.join(output_directory, f"{base_name}_{sheet_name}.xlsx")
+                # Guardo los datos en el nuevo archivo, asegurándome de que la hoja tenga el nombre correcto.
+                with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+                    data.to_excel(writer, index=False, sheet_name=sheet_name)
+                # Notifico que he guardado los datos correctamente.
+                print(f"Datos de '{sheet_name}' en '{file}' guardados en '{output_file}' con la hoja nombrada '{sheet_name}'")
+            except Exception as e:
+                # Si algo sale mal, imprimo el error para poder entender qué pasó.
+                print(f"Error extrayendo de {file}: {str(e)}")
+
+# Aquí abajo tengo un ejemplo de cómo usaría mi función con rutas específicas.
+directory = "/content/workinhouse"
+sheet_names = ["Actividades app", "inspecciones app"]
+output_directory = "/content/workinhouse/outputs"
+
+extract_and_save_sheet_data(directory, sheet_names, output_directory)
